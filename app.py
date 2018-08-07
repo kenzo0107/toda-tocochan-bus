@@ -1,23 +1,23 @@
 from flask import Flask, render_template, jsonify, request, session
 from datetime import datetime, timedelta
 from pytz import timezone
-import logging
 import os
 
 app = Flask(__name__)
 app.config.from_object('config')
 port = int(os.getenv('PORT', 8000))
 
+
 @app.route('/')
 def index():
     # set configure datas.
-    defaults    = app.config['DEFAULTS']
-    circuits    = app.config['CIRCUITS']
+    defaults = app.config['DEFAULTS']
+    circuits = app.config['CIRCUITS']
     time_tables = app.config['TIME_TABLES']
 
-    circuit_id    = session.get('circuit_id', defaults['circuit_id'])
+    circuit_id = session.get('circuit_id', defaults['circuit_id'])
     session['circuit_id'] = circuit_id
-    station_id    = session.get('station_id', defaults['station_id'])
+    station_id = session.get('station_id', defaults['station_id'])
     circuit_flickity_index = list(circuits.keys()).index(circuit_id)
 
     return render_template(
@@ -29,10 +29,11 @@ def index():
         station_id=station_id,
     )
 
+
 @app.route('/ts')
 def timetable():
-    defaults    = app.config['DEFAULTS']
-    circuits    = app.config['CIRCUITS']
+    defaults = app.config['DEFAULTS']
+    circuits = app.config['CIRCUITS']
     time_tables = app.config['TIME_TABLES']
 
     circuit_id = session.get('circuit_id', defaults['circuit_id'])
@@ -53,6 +54,7 @@ def timetable():
         next_time_tables=next_time_tables
     )
 
+
 @app.route('/circuit', methods=['POST'])
 def set_circuit():
     circuit_id = request.json['circuit_id']
@@ -65,33 +67,39 @@ def set_circuit():
     res.status_code = 200
     return res
 
+
+@app.route('/sw.js', methods=['GET'])
+def sw():
+    return app.send_static_file('sw.js')
+
+
 def get_time_tables(circuit_id, station_id):
     # Time Table.
     time_tables = app.config["TIME_TABLES"]
     time_table = time_tables[circuit_id]
-    exclude_hours    = time_table['exclude_hours']
+    exclude_hours = time_table['exclude_hours']
     interval_minutes = time_table['interval_minutes']
-    stations         = time_table['stations']
+    stations = time_table['stations']
 
     # Station.
     station = stations[station_id]
-    start   = station['start']
+    start = station['start']
     s = start.split(':')
     start_hour = int(s[0])
     arrived_at = int(s[1])
 
-    end     = station['end']
+    end = station['end']
     e = end.split(':')
-    end_hour   = int(e[0])
+    end_hour = int(e[0])
     end_minute = int(e[1])
 
     # current time.
     current_datetime = datetime.now(timezone('Asia/Tokyo'))
-    current_year  = current_datetime.year
+    current_year = current_datetime.year
     current_month = current_datetime.month
-    current_day   = current_datetime.day
-    current_hour  = int(current_datetime.hour)
-    current_min   = int(current_datetime.minute)
+    current_day = current_datetime.day
+    current_hour = int(current_datetime.hour)
+    current_min = int(current_datetime.minute)
 
     next_hour = current_hour if current_min < arrived_at else current_hour + 1
     if next_hour in exclude_hours:
@@ -121,14 +129,14 @@ def get_time_tables(circuit_id, station_id):
     # 次にバスがくる時刻
     next_time_tables = []
     while next_datetime <= end_datetime:
-        d    = next_datetime.strftime('%Y-%m-%d %H:%M:%S')
+        d = next_datetime.strftime('%Y-%m-%d %H:%M:%S')
         hour = next_datetime.hour
         next_datetime += timedelta(minutes=interval_minutes)
         if hour not in exclude_hours:
             next_time_tables.append(d)
 
-
     return next_time_tables
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
