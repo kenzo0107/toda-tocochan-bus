@@ -32,35 +32,11 @@ self.addEventListener('fetch', event => {
   console.log('fetch')
   event.respondWith(
     // リクエストを見て Service Worker が生成したキャッシュの中に該当するものがあるか探す。
-    caches.match(event.request)
-      .then(function(response) {
-        // キャッシュがあったのでそのレスポンスを返す
-        if (response) {
-          console.log('Cache exists !')
-          return response
-        }
-        var fetchRequest = event.request.clone()
-
-        return fetch(fetchRequest).then(
-          function(response) {
-            // レスポンスが正しいかをチェック
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response
-            }
-
-            // 重要：レスポンスを clone する。レスポンスは Stream で
-            // ブラウザ用とキャッシュ用の2回必要。なので clone して
-            // 2つの Stream があるようにする
-            var responseToCache = response.clone()
-
-            caches.open(cacheName)
-              .then(function(cache) {
-                cache.put(event.request, responseToCache)
-              })
-
-            return response
-          }
-        )
+    caches.match(event.request, {
+      ignoreSearch:true
+    })
+      .then(response => {
+        return response || fetch(event.request)
       }
     )
   )
@@ -68,5 +44,5 @@ self.addEventListener('fetch', event => {
 
 self.addEventListener('activate', event => {
   console.log('activate')
-  clients.claim()
+  event.waitUntil(self.clients.claim());
 })
